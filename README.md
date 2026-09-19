@@ -1,12 +1,30 @@
 # LoopGrid MCP Server — v0.1 design preview
 
-**A thin Model Context Protocol bridge for the LoopGrid evidence plane.**
+**MCP access to the LoopGrid evidence plane for consequential AI and agent decisions.**
 
 <!-- mcp-name: io.github.loopgridio/loopgrid-mcp -->
 
-`loopgrid-mcp` lets an MCP-compatible host record and retrieve LoopGrid decision evidence through six MCP tools. It is intentionally a **separate repository** from the LoopGrid core product and talks to LoopGrid only through its REST API.
+`loopgrid-mcp` is a thin Model Context Protocol (MCP) bridge for LoopGrid.
 
-It does not import LoopGrid internals, access the LoopGrid database directly, change signing code, alter the evidence schema, or modify the existing LoopGrid SDK contracts.
+It lets an MCP-compatible AI host record and retrieve signed, tamper-evident decision evidence through six MCP tools while keeping the MCP layer separate from the LoopGrid core runtime.
+
+The bridge communicates with LoopGrid exclusively through its REST API. It does not import LoopGrid internals, access the LoopGrid database directly, change signing logic, alter the evidence schema, or modify the existing LoopGrid SDK contracts.
+
+## Public release
+
+Current version:
+
+```text
+0.1.0
+```
+
+Available through:
+
+- **PyPI:** `loopgrid-mcp`
+- **GitHub:** `github.com/loopgridio/loopgrid-mcp`
+- **MCP Registry:** `io.github.loopgridio/loopgrid-mcp`
+
+The official MCP Registry entry is active and currently points to the PyPI `0.1.0` package using local `stdio` transport.
 
 ## Architecture
 
@@ -22,14 +40,17 @@ MCP-compatible AI host/client
         LoopGrid
           |
           v
- signed, tamper-evident decision evidence
+ signed, tamper-evident
+ decision evidence
 ```
 
-The v0.1 release uses **local stdio**. No separate Railway, Render, AWS, database, or hosted MCP service is required.
+The v0.1 release uses **local stdio** transport.
+
+No separate hosted MCP service, Railway deployment, Render deployment, AWS service, or MCP-specific database is required.
 
 ## MCP tools
 
-The server exposes:
+The server exposes six tools:
 
 - `loopgrid.record_decision`
 - `loopgrid.record_review`
@@ -42,13 +63,15 @@ The server exposes:
 
 LoopGrid MCP is an **evidence bridge**, not a business-action executor.
 
-`loopgrid.record_action` does not issue a Stripe refund, edit Salesforce, change ServiceNow, or invoke another business system. It records evidence supplied by the calling integration that an external action occurred.
+`loopgrid.record_action` does not issue a Stripe refund, modify Salesforce, change ServiceNow, or invoke another external business system. It records evidence supplied by the calling integration that an external action occurred.
 
-Likewise, `loopgrid.record_outcome` records an outcome reported by the integration. LoopGrid can verify the integrity of the captured record; this alone does not independently prove that every external-world claim is true or establish legal compliance.
+Likewise, `loopgrid.record_outcome` records an outcome reported by the calling integration.
 
-Human review receives extra protection: `loopgrid.record_review` is registered but **disabled by default**. To enable it, an operator must explicitly set the review flag and reviewer identity. The model cannot choose the configured reviewer identity.
+LoopGrid can cryptographically verify the integrity of the captured record. That verification does not independently prove that every external-world claim in the record is true and does not determine legal or regulatory compliance.
 
-Raw FULL-mode disclosures are also excluded from MCP evidence export by default.
+Human review receives additional protection. `loopgrid.record_review` is registered as an MCP tool but is **disabled by default**. To enable it, an operator must explicitly configure both the review flag and reviewer identity. The model cannot choose the configured reviewer identity.
+
+Raw FULL-mode disclosure payloads are also excluded from MCP evidence export by default.
 
 ## Requirements
 
@@ -56,15 +79,21 @@ Raw FULL-mode disclosures are also excluded from MCP evidence export by default.
 - A reachable LoopGrid v0.8.x service
 - For local evaluation, the public LoopGrid GHCR image is sufficient
 
-Normal use of this Python stdio server does **not** require Node.js. Node is only needed for optional browser-based MCP Inspector tooling.
+Normal use of the Python stdio server does **not** require Node.js.
 
-The project uses the official MCP Python SDK v2 line (`mcp>=2,<3`).
+Node.js is only needed for optional browser-based MCP Inspector tooling.
 
-## Windows quick start
+The project uses the official MCP Python SDK v2 line:
+
+```text
+mcp>=2,<3
+```
+
+## Quick start
 
 ### 1. Start LoopGrid
 
-In PowerShell:
+For local evaluation using Docker:
 
 ```powershell
 docker run --rm `
@@ -74,20 +103,33 @@ docker run --rm `
   ghcr.io/cybertechsoft/loopgrid:edge
 ```
 
-Leave that container running.
+Leave the LoopGrid container running.
 
-### 2. Prepare this repository
+By default, LoopGrid MCP expects the service at:
 
-Open another PowerShell window in the `loopgrid-mcp` folder:
+```text
+http://127.0.0.1:8000
+```
+
+### 2. Install LoopGrid MCP from PyPI
+
+Create a Python virtual environment:
 
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+```
+
+Install the published package:
+
+```powershell
+pip install loopgrid-mcp
 ```
 
 ### 3. Check connectivity
+
+Run:
 
 ```powershell
 loopgrid-mcp-doctor
@@ -104,21 +146,106 @@ Expected shape:
 [OK] MCP workspace: default
 ```
 
-### 4. Run the unit/protocol tests
+The local evaluation configuration does not require a service key when LoopGrid authentication is disabled.
+
+### 4. Start the MCP server
+
+Run:
+
+```powershell
+loopgrid-mcp
+```
+
+Because this is a stdio MCP server, running it directly normally causes it to wait for MCP messages on standard input.
+
+In normal use, an MCP-compatible host starts this command for you.
+
+## Generic MCP client configuration
+
+A generic client configuration looks like:
+
+```json
+{
+  "mcpServers": {
+    "loopgrid": {
+      "command": "loopgrid-mcp",
+      "env": {
+        "LOOPGRID_BASE_URL": "http://127.0.0.1:8000",
+        "LOOPGRID_WORKSPACE": "default"
+      }
+    }
+  }
+}
+```
+
+On Windows, some MCP hosts may require the full path to the executable, for example:
+
+```text
+.venv\Scripts\loopgrid-mcp.exe
+```
+
+See:
+
+```text
+examples/mcp-client-config.windows.json
+```
+
+for an example.
+
+## Install from source
+
+For development or repository validation:
+
+```powershell
+git clone https://github.com/loopgridio/loopgrid-mcp.git
+cd loopgrid-mcp
+
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+Then verify connectivity:
+
+```powershell
+loopgrid-mcp-doctor
+```
+
+## Development and validation
+
+### Unit and protocol tests
+
+Run:
 
 ```powershell
 python -m pytest -ra
 ```
 
-### 5. Run a real REST smoke test
+### Repository release check
+
+Run:
+
+```powershell
+python .\scripts\release_check.py
+```
+
+### REST smoke test
+
+Run:
 
 ```powershell
 python .\scripts\smoke_test.py
 ```
 
-This creates a synthetic decision, records synthetic action/outcome evidence, verifies the decision, and downloads an evidence ZIP. It does not call a real external business system.
+The smoke test creates a synthetic decision, records synthetic action and outcome evidence, verifies the decision, and downloads an evidence ZIP.
 
-### 6. Run the real stdio MCP client test
+It does not call a real external business system.
+
+### Real stdio MCP client test
+
+Run:
 
 ```powershell
 python .\scripts\mcp_stdio_test.py
@@ -143,37 +270,13 @@ A successful run ends with:
 [PASS] Real stdio MCP client test completed successfully.
 ```
 
-This is the recommended release-gate test for the MCP protocol path.
-
-## Start the MCP server
-
-```powershell
-loopgrid-mcp
-```
-
-A real MCP host normally starts this command for you. Because this is a stdio server, running it directly simply waits for MCP messages on standard input.
-
-A generic MCP client configuration is:
-
-```json
-{
-  "mcpServers": {
-    "loopgrid": {
-      "command": "loopgrid-mcp",
-      "env": {
-        "LOOPGRID_BASE_URL": "http://127.0.0.1:8000",
-        "LOOPGRID_WORKSPACE": "default"
-      }
-    }
-  }
-}
-```
-
-On Windows, some hosts need the full path to `.venv\\Scripts\\loopgrid-mcp.exe`. See `examples/mcp-client-config.windows.json`.
+This is the recommended automated release-gate test for the MCP protocol path.
 
 ## Optional MCP Inspector
 
-The browser Inspector is useful for manual exploration, but it is not required to run or validate LoopGrid MCP. The canonical automated protocol test in this repository is:
+The browser-based MCP Inspector can be useful for manual exploration, but it is not required to run or validate LoopGrid MCP.
+
+The canonical automated protocol test in this repository remains:
 
 ```powershell
 python .\scripts\mcp_stdio_test.py
@@ -189,7 +292,9 @@ mcp dev .\src\loopgrid_mcp\server.py
 
 ### `loopgrid.record_decision`
 
-Captures a decision through LoopGrid's REST API. It may also append model evidence and evaluate an existing LoopGrid policy when those optional inputs are supplied.
+Captures a decision through the LoopGrid REST API.
+
+Optional inputs can also append model evidence and evaluate an existing LoopGrid policy.
 
 It never executes `proposed_action`.
 
@@ -219,30 +324,50 @@ Example:
 
 ### `loopgrid.record_review`
 
-Records an approve/reject review using the LoopGrid review endpoint. **Disabled by default.**
+Records an approve/reject review through the LoopGrid review endpoint.
 
-To enable deliberately:
+This tool is **disabled by default**.
+
+To enable it deliberately:
 
 ```powershell
 $env:LOOPGRID_MCP_ENABLE_REVIEW_TOOL="true"
 $env:LOOPGRID_MCP_REVIEWER_ID="reviewer@example.com"
 ```
 
-When LoopGrid authentication is enabled, the service key also needs the appropriate review scope.
+When LoopGrid authentication is enabled, the configured service key must also have the appropriate review scope.
 
 ### `loopgrid.record_action`
 
-Appends `tool_executed` evidence. It does not execute the external tool. Canonical fields such as the tool name cannot be overwritten by free-form `details`.
+Appends `tool_executed` evidence to the decision record.
+
+It does **not** execute the external tool.
+
+Canonical fields such as the tool name cannot be overwritten by free-form `details`.
 
 ### `loopgrid.record_outcome`
 
-Appends `outcome_observed` evidence. The calling integration is responsible for obtaining the real downstream outcome. Canonical `status` and `verified_against` fields cannot be overwritten by free-form `details`.
+Appends `outcome_observed` evidence.
+
+The calling integration is responsible for obtaining the real downstream outcome.
+
+Canonical fields such as `status` and `verified_against` cannot be overwritten by free-form `details`.
 
 ### `loopgrid.get_evidence`
 
-Downloads the portable evidence ZIP to `LOOPGRID_EVIDENCE_DIR` (default `./loopgrid-evidence`).
+Downloads the portable LoopGrid evidence ZIP to:
 
-Raw disclosure payloads are blocked unless explicitly enabled:
+```text
+LOOPGRID_EVIDENCE_DIR
+```
+
+The default directory is:
+
+```text
+./loopgrid-evidence
+```
+
+Raw disclosure payloads are blocked from MCP evidence export unless explicitly enabled:
 
 ```powershell
 $env:LOOPGRID_MCP_ALLOW_PAYLOAD_EXPORT="true"
@@ -250,13 +375,15 @@ $env:LOOPGRID_MCP_ALLOW_PAYLOAD_EXPORT="true"
 
 ### `loopgrid.verify_evidence`
 
-Asks the connected LoopGrid service to verify the decision's signed workspace chain. This is **service-side verification**.
+Asks the connected LoopGrid service to verify the decision's signed workspace chain.
 
-For independent/offline verification of an exported ZIP, use the standalone LoopGrid verifier. The MCP bridge intentionally does not duplicate that verifier.
+This is **service-side verification**.
+
+Independent/offline verification of an exported evidence bundle should use the corresponding LoopGrid evidence-verification workflow rather than duplicating that verifier inside the MCP bridge.
 
 ## Authenticated LoopGrid deployments
 
-For local evaluation with authentication disabled, no service key is required.
+For local evaluation with LoopGrid authentication disabled, no service key is required.
 
 When authentication is enabled:
 
@@ -264,55 +391,155 @@ When authentication is enabled:
 $env:LOOPGRID_SERVICE_KEY="<scoped-service-key>"
 ```
 
-Use the minimum scopes required by the tools you enable. Do not use an admin key unless administration is genuinely required.
+Use the minimum scopes required by the MCP tools you enable.
+
+Do not use an administrative key unless administration is genuinely required.
 
 ## Configuration
 
-See `.env.example` for the full list of supported environment variables.
+See:
 
-The bridge does **not** automatically load `.env`; the MCP host should inject variables, or the operator should set them in the environment that starts the server.
+```text
+.env.example
+```
 
-The target LoopGrid URL is operator configuration, not an MCP tool argument, so a model cannot redirect the bridge to an arbitrary host through a tool call.
+for the complete supported environment-variable configuration.
+
+Common settings include:
+
+```text
+LOOPGRID_BASE_URL
+LOOPGRID_WORKSPACE
+LOOPGRID_SERVICE_KEY
+LOOPGRID_EVIDENCE_DIR
+LOOPGRID_MCP_TIMEOUT_SECONDS
+LOOPGRID_MCP_ENABLE_REVIEW_TOOL
+LOOPGRID_MCP_REVIEWER_ID
+LOOPGRID_MCP_ALLOW_PAYLOAD_EXPORT
+```
+
+The bridge does **not** automatically load `.env`.
+
+The MCP host should inject environment variables, or the operator should configure them in the environment that starts the server.
+
+The LoopGrid service URL is operator configuration rather than an MCP tool argument. This prevents a model from redirecting the bridge to an arbitrary LoopGrid host through a tool call.
+
+## Privacy and disclosure defaults
+
+LoopGrid supports evidence workflows with different disclosure levels.
+
+The MCP bridge follows conservative defaults:
+
+- human review recording is disabled unless explicitly enabled;
+- reviewer identity is operator-configured;
+- raw FULL-mode payload export is disabled by default;
+- authenticated deployments should use scoped service keys;
+- external business actions are never executed by the MCP bridge itself.
 
 ## Repository boundary
 
-The intended public layout is:
+LoopGrid core and LoopGrid MCP intentionally remain separate:
 
 ```text
 github.com/cybertechsoft/loopgrid
     core LoopGrid evidence infrastructure
 
 github.com/loopgridio/loopgrid-mcp
-    thin MCP protocol bridge
+    MCP protocol bridge
 ```
 
-The bridge communicates with LoopGrid only over HTTP.
+The MCP bridge communicates with the LoopGrid core runtime only over HTTP.
 
 ## Validation status
 
-The v0.1 release candidate has been exercised locally on Windows against the public LoopGrid v0.8.1 design-partner container. The real official MCP Python client successfully negotiated MCP protocol `2026-07-28`, discovered all six tools, created a synthetic decision, recorded action/outcome evidence, verified the evidence service-side, exported the evidence ZIP, and confirmed the review tool remained disabled by default.
+LoopGrid MCP `0.1.0` has been validated on Windows against the public LoopGrid `0.8.1-design-partner` container.
+
+Validation included:
+
+- clean repository installation;
+- Python unit/protocol tests;
+- REST connectivity;
+- synthetic decision creation;
+- action evidence recording;
+- outcome evidence recording;
+- service-side cryptographic verification;
+- portable evidence ZIP export;
+- official MCP Python client stdio negotiation;
+- discovery of all six MCP tools;
+- confirmation that the review tool remains disabled by default.
+
+The official MCP Python client successfully negotiated MCP protocol:
+
+```text
+2026-07-28
+```
 
 See `VALIDATION.md` for the detailed release-gate record.
 
-## MCP Registry preparation
+## MCP Registry
 
-The MCP Registry is **not published yet**.
+LoopGrid MCP is published in the official MCP Registry as:
 
-`registry/server.json.draft` is preparation only. Publish order should be:
+```text
+io.github.loopgridio/loopgrid-mcp
+```
 
-1. publish this GitHub repository;
-2. obtain green CI from a clean checkout;
-3. publish `loopgrid-mcp` to PyPI;
-4. confirm the PyPI README contains the matching `mcp-name` marker;
-5. validate/update `server.json` against the current Registry schema;
-6. publish to the official MCP Registry.
+Current Registry version:
 
-The current MCP Registry supports PyPI package entries using stdio transport, and verifies PyPI ownership using the `mcp-name:` marker in the package README.
+```text
+0.1.0
+```
+
+Registry metadata:
+
+```text
+Status: active
+Latest: true
+Package registry: PyPI
+Package: loopgrid-mcp
+Transport: stdio
+```
+
+The Registry entry is publicly discoverable and points to:
+
+```text
+https://github.com/loopgridio/loopgrid-mcp
+```
+
+The corresponding Python package is published as:
+
+```text
+loopgrid-mcp==0.1.0
+```
+
+The hidden ownership marker near the top of this README:
+
+```html
+<!-- mcp-name: io.github.loopgridio/loopgrid-mcp -->
+```
+
+is intentionally retained because it is used for MCP Registry package ownership verification.
+
+For future releases:
+
+1. update the package version;
+2. update `server.json` to the same version;
+3. run the repository validation suite;
+4. publish the new version to PyPI;
+5. confirm the package is publicly installable;
+6. validate `server.json` with `mcp-publisher`;
+7. publish the corresponding version to the MCP Registry.
 
 ## Release posture
 
-`0.1.0` is a **design preview**, not Production GA. It is intended to validate a clean MCP integration path for LoopGrid v0.8.x without changing LoopGrid's signing, hash-chain, evidence-bundle, verifier, or SDK contracts.
+`0.1.0` is a **design preview**, not Production GA.
+
+It is intended to validate a clean MCP integration path for LoopGrid v0.8.x without changing LoopGrid's signing, hash-chain, evidence-bundle, verification, or SDK contracts.
+
+LoopGrid provides signed, tamper-evident evidence and append-only decision history. Verification confirms the integrity of the captured record; it does not determine legal compliance.
 
 ## License
 
-Apache-2.0. See `LICENSE`.
+Apache-2.0.
+
+See `LICENSE`.

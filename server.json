@@ -1,0 +1,41 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.loopgridio/loopgrid-mcp",
+  "title": "LoopGrid MCP",
+  "description": "MCP bridge for tamper-evident evidence around consequential AI and agent decisions.",
+  "repository": {
+    "url": "https://github.com/loopgridio/loopgrid-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "loopgrid-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "LOOPGRID_BASE_URL",
+          "description": "Base URL of the LoopGrid service",
+          "isRequired": false,
+          "default": "http://127.0.0.1:8000"
+        },
+        {
+          "name": "LOOPGRID_SERVICE_KEY",
+          "description": "Scoped LoopGrid service API key when authentication is enabled",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "LOOPGRID_WORKSPACE",
+          "description": "LoopGrid workspace id",
+          "isRequired": false,
+          "default": "default"
+        }
+      ]
+    }
+  ]
+}

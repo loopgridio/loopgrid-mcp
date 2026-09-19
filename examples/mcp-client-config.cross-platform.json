@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "loopgrid": {
+      "command": "loopgrid-mcp",
+      "env": {
+        "LOOPGRID_BASE_URL": "http://127.0.0.1:8000",
+        "LOOPGRID_WORKSPACE": "default"
+      }
+    }
+  }
+}

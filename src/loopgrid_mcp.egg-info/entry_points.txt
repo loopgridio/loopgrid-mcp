@@ -1,0 +1,3 @@
+[console_scripts]
+loopgrid-mcp = loopgrid_mcp.server:main
+loopgrid-mcp-doctor = loopgrid_mcp.doctor:main

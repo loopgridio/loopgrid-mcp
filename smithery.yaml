@@ -1,0 +1,39 @@
+version: 1
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - loopgridBaseUrl
+    properties:
+      loopgridBaseUrl:
+        type: string
+        title: LoopGrid base URL
+        description: Base URL of the LoopGrid service reachable from the environment running this MCP server.
+        default: http://127.0.0.1:8000
+      loopgridServiceKey:
+        type: string
+        title: LoopGrid service key
+        description: Optional scoped LoopGrid service key when authentication is enabled.
+        format: password
+      loopgridWorkspace:
+        type: string
+        title: LoopGrid workspace
+        description: LoopGrid workspace ID used for evidence operations.
+        default: default
+  commandFunction: |-
+    (config) => ({
+      command: 'uvx',
+      args: ['--python', '3.12', '--from', 'loopgrid-mcp==0.1.0', 'loopgrid-mcp'],
+      env: {
+        LOOPGRID_BASE_URL: config.loopgridBaseUrl,
+        LOOPGRID_WORKSPACE: config.loopgridWorkspace || 'default',
+        ...(config.loopgridServiceKey ? { LOOPGRID_SERVICE_KEY: config.loopgridServiceKey } : {}),
+        LOOPGRID_MCP_ENABLE_REVIEW_TOOL: 'false',
+        LOOPGRID_MCP_ALLOW_PAYLOAD_EXPORT: 'false'
+      }
+    })
+  exampleConfig:
+    loopgridBaseUrl: http://127.0.0.1:8000
+    loopgridWorkspace: default
